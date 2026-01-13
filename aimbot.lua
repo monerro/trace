@@ -1,4 +1,4 @@
---// AIMBOT SYSTEM - FIXED FOR THIRD-PERSON
+--// RAW AIMLOCK - ZERO SMOOTHNESS, HEAD SNAP
 local RunService = _G.RunService
 local UserInputService = _G.UserInputService
 local Players = _G.Players
@@ -16,7 +16,7 @@ FOVCircle.Transparency = 0.9
 
 -- Aimbot Status
 local AimbotStatus = Drawing.new("Text")
-AimbotStatus.Text = "Aimbot: OFF"
+AimbotStatus.Text = "AIMLOCK: OFF"
 AimbotStatus.Size = 14
 AimbotStatus.Color = Color3.fromRGB(255,50,50)
 AimbotStatus.Outline = true
@@ -24,7 +24,7 @@ AimbotStatus.Center = false
 AimbotStatus.Position = Vector2.new(10,10)
 AimbotStatus.Visible = true
 
--- Wall Check System
+-- Wall Check (optional)
 local wallCheckParams = RaycastParams.new()
 wallCheckParams.FilterType = Enum.RaycastFilterType.Blacklist
 wallCheckParams.IgnoreWater = true
@@ -48,33 +48,7 @@ local function WallCheck(origin, targetPart)
     return true
 end
 
--- 🎯 KEY FIX: Get shooting origin for third-person
-local function GetShootingOrigin()
-    if not LocalPlayer.Character then return Camera.CFrame.Position end
-    
-    -- Check if character is holding a tool (gun)
-    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    if tool and tool:FindFirstChild("Handle") then
-        -- Use gun handle position
-        return tool.Handle.Position
-    end
-    
-    -- Check for common gun parts
-    local rightHand = LocalPlayer.Character:FindFirstChild("RightHand")
-    if rightHand then
-        return rightHand.Position
-    end
-    
-    -- Use head position as fallback
-    local head = LocalPlayer.Character:FindFirstChild("Head")
-    if head then
-        return head.Position
-    end
-    
-    -- Fallback to camera position
-    return Camera.CFrame.Position
-end
-
+-- Get closest target
 local function GetClosestTarget()
     local closest, dist = nil, math.huge
     local screenCenter = Camera.ViewportSize / 2
@@ -91,13 +65,13 @@ local function GetClosestTarget()
                 end
             end
             
-            local part = plr.Character and plr.Character:FindFirstChild(Settings.Aim.BodyPart)
-            if part then
-                local pos, onscreen = Camera:WorldToViewportPoint(part.Position)
+            local head = plr.Character and plr.Character:FindFirstChild("Head")
+            if head then
+                local pos, onscreen = Camera:WorldToViewportPoint(head.Position)
                 if onscreen then
                     local mag = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
                     if mag < fovRadius and mag < dist then
-                        if WallCheck(GetShootingOrigin(), part) then
+                        if WallCheck(Camera.CFrame.Position, head) then
                             dist = mag
                             closest = plr
                         end
@@ -121,17 +95,19 @@ local HitSounds = {
     Neverlose = "rbxassetid://6534947588"
 }
 
-local lastHitSoundTime = 0
-local HIT_SOUND_INTERVAL = 0.05  -- Spam every 0.05 seconds when hitting
-local targetLastHealth = {}
+local hitSoundQueue = {}
+local isPlayingSound = false
 
-local function playHitSoundSpam()
+local function playHitSound()
     if not Settings.Damage or not Settings.Damage.HitSound then return end
     
-    local soundId = HitSounds[Settings.Damage.HitSoundType] or HitSounds.Skeet
-    local currentTime = tick()
+    table.insert(hitSoundQueue, tick())
     
-    if currentTime - lastHitSoundTime > HIT_SOUND_INTERVAL then
+    if not isPlayingSound then
+        isPlayingSound = true
+        
+        local soundId = HitSounds[Settings.Damage.HitSoundType] or HitSounds.Skeet
+        
         local sound = Instance.new("Sound")
         sound.SoundId = soundId
         sound.Volume = Settings.Damage.HitSoundVolume or 0.5
@@ -140,14 +116,19 @@ local function playHitSoundSpam()
         
         sound.Ended:Once(function()
             sound:Destroy()
+            isPlayingSound = false
+            
+            -- Play next sound in queue if there is one
+            if #hitSoundQueue > 0 then
+                table.remove(hitSoundQueue, 1)
+                playHitSound()
+            end
         end)
-        
-        lastHitSoundTime = currentTime
     end
 end
 
--- Check for damage to trigger spam hitsounds
-local function checkForDamageSpam()
+-- Check for damage to trigger hitsound spam
+local function checkForDamage()
     if not CurrentTarget then return end
     if not CurrentTarget.Character then return end
     
@@ -157,31 +138,26 @@ local function checkForDamageSpam()
     local currentHealth = humanoid.Health
     local lastHealth = targetLastHealth[CurrentTarget] or currentHealth
     
-    -- Check if health decreased (we're hitting them)
+    -- Check if health decreased
     if currentHealth < lastHealth then
-        -- SPAM HITSOUNDS WHILE DAMAGE IS HAPPENING
         local damage = lastHealth - currentHealth
         
-        -- Spam sound based on damage amount (more damage = more spam)
-        local spamCount = math.min(math.floor(damage / 5) + 1, 10)
-        
-        for i = 1, spamCount do
-            task.spawn(function()
-                task.wait((i-1) * 0.03)  -- Stagger sounds slightly
-                playHitSoundSpam()
-            end)
+        -- Spam hitsounds based on damage
+        local soundCount = math.min(math.floor(damage / 5), 10)
+        for i = 1, soundCount do
+            task.spawn(playHitSound)
         end
-        
-        print("[TR4CE] Hit " .. CurrentTarget.Name .. " for " .. damage .. " HP (spamming " .. spamCount .. " sounds)")
     end
     
     targetLastHealth[CurrentTarget] = currentHealth
 end
 
+-- Main variables
 local CurrentTarget = nil
 local aimbotToggled = false
+local targetLastHealth = {}
 local lastUpdate = 0
-local UPDATE_RATE = 1/60
+local UPDATE_RATE = 1/144  -- Max FPS
 
 RunService.RenderStepped:Connect(function()
     local now = tick()
@@ -196,9 +172,8 @@ RunService.RenderStepped:Connect(function()
     if now - lastUpdate < UPDATE_RATE then return end
     lastUpdate = now
     
-    if not Settings.Aim.StickyAim or not Utils.IsAlive(CurrentTarget) then
-        CurrentTarget = GetClosestTarget()
-    end
+    -- Always update target for sticky tracking
+    CurrentTarget = GetClosestTarget()
     
     local shouldAim = false
     if Settings.Aim.HoldMode then
@@ -211,68 +186,29 @@ RunService.RenderStepped:Connect(function()
         shouldAim = shouldAim and Utils.IsADS()
     end
     
-    -- Update status text
+    -- Update status
     if Settings.Aim.Enabled then
-        if Settings.Aim.HoldMode then
-            if UserInputService:IsKeyDown(Settings.Aim.HoldKey) then
-                AimbotStatus.Text = "Aimbot: ACTIVE [HOLD]"
-                AimbotStatus.Color = Color3.fromRGB(0,255,0)
-            else
-                AimbotStatus.Text = "Aimbot: READY [HOLD]"
-                AimbotStatus.Color = Color3.fromRGB(255,200,0)
-            end
+        if shouldAim then
+            AimbotStatus.Text = "AIMLOCK: ON"
+            AimbotStatus.Color = Color3.fromRGB(0,255,0)
         else
-            if aimbotToggled then
-                AimbotStatus.Text = "Aimbot: ON [TOGGLE]"
-                AimbotStatus.Color = Color3.fromRGB(0,255,0)
-            else
-                AimbotStatus.Text = "Aimbot: OFF [TOGGLE]"
-                AimbotStatus.Color = Color3.fromRGB(255,200,0)
-            end
+            AimbotStatus.Text = "AIMLOCK: READY"
+            AimbotStatus.Color = Color3.fromRGB(255,200,0)
         end
     else
-        AimbotStatus.Text = "Aimbot: DISABLED"
+        AimbotStatus.Text = "AIMLOCK: DISABLED"
         AimbotStatus.Color = Color3.fromRGB(255,50,50)
     end
     
+    -- 🎯 RAW AIMLOCK (ZERO SMOOTHNESS)
     if shouldAim and CurrentTarget then
-        local part = CurrentTarget.Character:FindFirstChild(Settings.Aim.BodyPart)
-        if part then
-            -- 🎯 KEY FIX: Different aiming method for third-person
+        local head = CurrentTarget.Character:FindFirstChild("Head")
+        if head then
+            -- DIRECT HEAD SNAP - NO SMOOTHNESS
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
             
-            -- Method 1: Aim character's torso (better for third-person)
-            local character = LocalPlayer.Character
-            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-            
-            if humanoidRootPart then
-                -- Calculate direction to target
-                local targetPos = part.Position
-                local myPos = humanoidRootPart.Position
-                local direction = (targetPos - myPos).Unit
-                
-                -- Aim the character (not camera)
-                humanoidRootPart.CFrame = CFrame.new(myPos, myPos + Vector3.new(direction.X, 0, direction.Z))
-                
-                -- Optional: Also adjust camera slightly
-                local camCF = Camera.CFrame
-                local goal = CFrame.new(camCF.Position, targetPos)
-                Camera.CFrame = camCF:Lerp(goal, Settings.Aim.Smoothness * 0.3)  -- Less camera movement
-            else
-                -- Fallback: Original camera aiming
-                local camCF = Camera.CFrame
-                local targetPos = part.Position
-                local direction = (targetPos - camCF.Position).Unit
-                local goal = CFrame.new(camCF.Position, camCF.Position + direction)
-                Camera.CFrame = camCF:Lerp(goal, Settings.Aim.Smoothness)
-            end
-            
-            -- 🎯 Check for damage and spam hitsounds
-            checkForDamageSpam()
-        end
-    else
-        -- Reset last health when not aiming
-        if CurrentTarget then
-            targetLastHealth[CurrentTarget] = nil
+            -- Check for damage and spam hitsounds
+            checkForDamage()
         end
     end
 end)
@@ -288,6 +224,5 @@ end)
 _G.CurrentTarget = CurrentTarget
 _G.GetClosestTarget = GetClosestTarget
 _G.aimbotToggled = aimbotToggled
-_G.playHitSoundSpam = playHitSoundSpam
 
-print("[TR4CE] Third-person aimbot loaded with spam hitsounds")
+print("[TR4CE] RAW AIMLOCK loaded - Zero smoothness head tracking")
