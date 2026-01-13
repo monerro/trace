@@ -1,4 +1,15 @@
 --// DAMAGE INDICATOR SYSTEM - FIXED VERSION
+
+local function waitForDependency(name)
+    for i = 1, 50 do  -- 5 second timeout
+        if _G[name] ~= nil then
+            return _G[name]
+        end
+        task.wait(0.1)
+    end
+    return nil
+end
+
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
