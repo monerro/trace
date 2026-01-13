@@ -37,8 +37,7 @@ local Settings = {
         SkeletonThickness = 1,
         Chams = false,
         ChamsTransparency = 0.5
-    },
-                CustomTeams = false,
+        CustomTeams = false,
         TargetTeams = {
             ["class-d"] = true,
             ["chaos insurgency"] = true,
