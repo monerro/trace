@@ -1,15 +1,37 @@
---// DAMAGE INDICATOR SYSTEM
+--// DAMAGE INDICATOR SYSTEM - FIXED VERSION
 local TweenService = _G.TweenService
-local Players = _G.Players
-local Camera = _G.Camera
-local LocalPlayer = _G.LocalPlayer
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 local Settings = _G.Settings
-local CurrentTarget = _G.CurrentTarget
 local DamageIndicatorGui = nil
 local trackedPlayers = {}
 local damageStack = {}
 
+-- Initialize if Settings doesn't exist
+if not Settings then Settings = {} end
+if not Settings.Damage then 
+    Settings.Damage = {
+        Enabled = true,
+        HitSound = true,
+        HitSoundType = "Skeet",
+        HitSoundVolume = 0.5,
+        TextSize = 18,
+        CriticalSize = 24,
+        NormalColor = Color3.fromRGB(255, 255, 255),
+        CriticalColor = Color3.fromRGB(255, 50, 50),
+        OutlineColor = Color3.fromRGB(0, 0, 0),
+        Duration = 2,
+        FloatHeight = 2,
+        OffsetX = 0,
+        OffsetY = 0
+    }
+end
+
 local function setupDamageGui()
+    if DamageIndicatorGui then DamageIndicatorGui:Destroy() end
+    
     DamageIndicatorGui = Instance.new("ScreenGui")
     DamageIndicatorGui.Name = "DamageIndicator"
     DamageIndicatorGui.ResetOnSpawn = false
@@ -19,10 +41,12 @@ local function setupDamageGui()
         DamageIndicatorGui.Parent = gethui()
     elseif syn and syn.protect_gui then
         syn.protect_gui(DamageIndicatorGui)
-        DamageIndicatorGui.Parent = game.CoreGui
+        DamageIndicatorGui.Parent = game:GetService("CoreGui")
     else
-        DamageIndicatorGui.Parent = game.CoreGui
+        DamageIndicatorGui.Parent = game:GetService("CoreGui")
     end
+    
+    print("[TR4CE] Damage GUI created")
 end
 
 local HitSounds = {
@@ -39,19 +63,23 @@ local HitSounds = {
 local function playHitSound()
     if not Settings.Damage.HitSound then return end
     
+    local soundId = HitSounds[Settings.Damage.HitSoundType] 
+    if not soundId then soundId = HitSounds.Skeet end
+    
     local sound = Instance.new("Sound")
-    sound.SoundId = HitSounds[Settings.Damage.HitSoundType] or HitSounds.Skeet
-    sound.Volume = Settings.Damage.HitSoundVolume
+    sound.SoundId = soundId
+    sound.Volume = Settings.Damage.HitSoundVolume or 0.5
     sound.Parent = game:GetService("SoundService")
     sound:Play()
     
-    sound.Ended:Connect(function()
+    sound.Ended:Once(function()
         sound:Destroy()
     end)
 end
 
 local function createDamageLabel(damage, isCritical)
     if not Settings.Damage.Enabled or not DamageIndicatorGui then return end
+    
     playHitSound()
 
     local label = Instance.new("TextLabel")
@@ -62,21 +90,24 @@ local function createDamageLabel(damage, isCritical)
     label.TextSize = isCritical and Settings.Damage.CriticalSize or Settings.Damage.TextSize
     label.TextColor3 = isCritical and Settings.Damage.CriticalColor or Settings.Damage.NormalColor
     label.TextStrokeTransparency = 0.5
-    label.TextStrokeColor3 = Settings.Damage.OutlineColor
+    label.TextStrokeColor3 = Settings.Damage.OutlineColor or Color3.new(0,0,0)
     label.TextTransparency = 0
     label.Parent = DamageIndicatorGui
     
     local screenCenter = Camera.ViewportSize / 2
     local stackOffset = #damageStack * 30
     
-    label.Position = UDim2.new(0, screenCenter.X + Settings.Damage.OffsetX - 50, 0, screenCenter.Y + Settings.Damage.OffsetY - 25 + stackOffset)
+    label.Position = UDim2.new(
+        0, screenCenter.X + (Settings.Damage.OffsetX or 0) - 50, 
+        0, screenCenter.Y + (Settings.Damage.OffsetY or 0) - 25 + stackOffset
+    )
     
     table.insert(damageStack, label)
     
     local startPos = label.Position
-    local endPos = startPos - UDim2.new(0, 0, 0, Settings.Damage.FloatHeight * 30)
+    local endPos = startPos - UDim2.new(0, 0, 0, (Settings.Damage.FloatHeight or 2) * 30)
     
-    local tweenInfo = TweenInfo.new(Settings.Damage.Duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tweenInfo = TweenInfo.new(Settings.Damage.Duration or 2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local tween = TweenService:Create(label, tweenInfo, {
         Position = endPos,
         TextTransparency = 1,
@@ -85,14 +116,20 @@ local function createDamageLabel(damage, isCritical)
     tween:Play()
     
     if isCritical then
-        label.TextSize = Settings.Damage.CriticalSize * 1.5
-        local scaleTween = TweenService:Create(label, TweenInfo.new(0.3), {
-            TextSize = Settings.Damage.CriticalSize
-        })
-        scaleTween:Play()
+        task.spawn(function()
+            local scaleTween = TweenService:Create(label, TweenInfo.new(0.3), {
+                TextSize = (Settings.Damage.CriticalSize or 24) * 1.2
+            })
+            scaleTween:Play()
+            task.wait(0.1)
+            scaleTween = TweenService:Create(label, TweenInfo.new(0.2), {
+                TextSize = Settings.Damage.CriticalSize or 24
+            })
+            scaleTween:Play()
+        end)
     end
     
-    task.delay(Settings.Damage.Duration, function()
+    task.delay(Settings.Damage.Duration or 2, function()
         for i, v in ipairs(damageStack) do
             if v == label then
                 table.remove(damageStack, i)
@@ -103,15 +140,40 @@ local function createDamageLabel(damage, isCritical)
     end)
 end
 
-local CurrentTarget = _G.CurrentTarget
+-- FIXED: Complete trackPlayerForDamage function
+local function trackPlayerForDamage(targetPlayer)
+    if trackedPlayers[targetPlayer] then return end
+    
+    local function onCharacterAdded(character)
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        if not humanoid then return end
+        
+        local connection = humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+            local oldHealth = humanoid:GetAttribute("LastHealth") or humanoid.MaxHealth
+            local newHealth = humanoid.Health
+            
+            if oldHealth > newHealth then
+                local damage = oldHealth - newHealth
+                local isCritical = damage > (humanoid.MaxHealth * 0.3) -- Critical if >30% of max health
+                createDamageLabel(damage, isCritical)
+            end
+            
+            humanoid:SetAttribute("LastHealth", newHealth)
+        end)
         
         trackedPlayers[targetPlayer] = connection
         
+        -- Initialize last health
+        humanoid:SetAttribute("LastHealth", humanoid.Health)
+        
+        -- Clean up when character is removed
         character.AncestryChanged:Connect(function()
-            if connection then
-                connection:Disconnect()
+            if character.Parent == nil then
+                if connection then
+                    connection:Disconnect()
+                end
+                trackedPlayers[targetPlayer] = nil
             end
-            trackedPlayers[targetPlayer] = nil
         end)
     end
     
@@ -154,13 +216,20 @@ local function disableDamageIndicator()
     trackedPlayers = {}
     
     if DamageIndicatorGui then
-        DamageIndicatorGui:ClearAllChildren()
+        DamageIndicatorGui:Destroy()
+        DamageIndicatorGui = nil
     end
     damageStack = {}
 end
 
--- Connect to settings
+-- Main initialization
+if Settings.Damage.Enabled then
+    enableDamageIndicator()
+end
+
+-- Export functions
 _G.enableDamageIndicator = enableDamageIndicator
 _G.disableDamageIndicator = disableDamageIndicator
+_G.createDamageLabel = createDamageLabel
 
-print("[TR4CE] Damage indicator system loaded")
+print("[TR4CE] Damage indicator system loaded successfully")
