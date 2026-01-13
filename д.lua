@@ -1,4 +1,6 @@
--- hi :P
+--// TR4CE | SCP ROLEPLAY Framework
+--// Main Loader File
+--// https://raw.githubusercontent.com/monerro/trace/main/%D0%B4.lua
 
 local repo = "https://raw.githubusercontent.com/monerro/trace/main/"
 
@@ -9,6 +11,8 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/v
 
 -- Store library globally for UI module
 _G.Library = Library
+_G.ThemeManager = ThemeManager
+_G.SaveManager = SaveManager
 
 print("[TR4CE] Loading modules...")
 
