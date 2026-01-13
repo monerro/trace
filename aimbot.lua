@@ -102,7 +102,7 @@ local HitSounds = {
 }
 
 local lastHitTime = 0
-local HIT_COOLDOWN = 0.5  -- Prevent sound spam
+local HIT_COOLDOWN = 0  -- Prevent sound spam
 local lastTargetHealth = {}
 
 local function playAimbotHitSound()
