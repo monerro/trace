@@ -1,4 +1,4 @@
---// AIMBOT SYSTEM
+--// AIMBOT SYSTEM - COMPLETE WITH WALL CHECK
 local RunService = _G.RunService
 local UserInputService = _G.UserInputService
 local Players = _G.Players
@@ -24,6 +24,7 @@ AimbotStatus.Center = false
 AimbotStatus.Position = Vector2.new(10,10)
 AimbotStatus.Visible = true
 
+-- Wall Check System
 local wallCheckParams = RaycastParams.new()
 wallCheckParams.FilterType = Enum.RaycastFilterType.Blacklist
 wallCheckParams.IgnoreWater = true
@@ -54,7 +55,14 @@ local function GetClosestTarget()
     
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr and plr ~= LocalPlayer and Utils.IsAlive(plr) then
-            if Settings.Aim.TeamCheck and not Utils.IsHostileTeam(plr) then continue end
+            -- Team check
+            if Settings.Aim.TeamCheck then
+                if Settings.Aim.CustomTeams then
+                    if not Utils.ShouldTargetCustom(plr) then continue end
+                else
+                    if not Utils.IsHostileTeam(plr) then continue end
+                end
+            end
             
             local part = plr.Character and plr.Character:FindFirstChild(Settings.Aim.BodyPart)
             if part then
@@ -150,8 +158,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Store globally for other modules
+-- Export
 _G.CurrentTarget = CurrentTarget
 _G.GetClosestTarget = GetClosestTarget
+_G.aimbotToggled = aimbotToggled
 
-print("[TR4CE] Aimbot system loaded")
+print("[TR4CE] Aimbot system loaded with wall check")
