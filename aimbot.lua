@@ -24,7 +24,6 @@ AimbotStatus.Center = false
 AimbotStatus.Position = Vector2.new(10,10)
 AimbotStatus.Visible = true
 
--- Wall Check System
 local wallCheckParams = RaycastParams.new()
 wallCheckParams.FilterType = Enum.RaycastFilterType.Blacklist
 wallCheckParams.IgnoreWater = true
@@ -48,40 +47,6 @@ local function WallCheck(origin, targetPart)
     return true
 end
 
--- Team Check Function (Updated for customization)
-local function ShouldTargetTeam(targetTeamName)
-    if not Settings.Aim.TeamCheck then return true end
-    
-    local myTeam = LocalPlayer.Team
-    if not myTeam then return true end
-    
-    local myTeamName = myTeam.Name:lower()
-    local targetTeamNameLower = targetTeamName:lower()
-    
-    -- Check custom team list if enabled
-    if Settings.Aim.CustomTeams and Settings.Aim.TargetTeams then
-        return Settings.Aim.TargetTeams[targetTeamNameLower] or false
-    end
-    
-    -- Original team logic (backward compatible)
-    if myTeamName:match("class%-d") or myTeamName:match("class d") then
-        return targetTeamNameLower:match("security") or targetTeamNameLower:match("rapid response") or 
-               targetTeamNameLower:match("mobile task force") or targetTeamNameLower:match("internal security")
-    end
-    
-    if myTeamName:match("chaos") then
-        return targetTeamNameLower:match("security") or targetTeamNameLower:match("rapid response") or 
-               targetTeamNameLower:match("mobile task force") or targetTeamNameLower:match("internal security")
-    end
-    
-    if myTeamName:match("security department") or myTeamName:match("rapid response") or 
-       myTeamName:match("mobile task force") or myTeamName:match("internal security") then
-        return targetTeamNameLower:match("class%-d") or targetTeamNameLower:match("class d") or targetTeamNameLower:match("chaos")
-    end
-    
-    return true
-end
-
 local function GetClosestTarget()
     local closest, dist = nil, math.huge
     local screenCenter = Camera.ViewportSize / 2
@@ -89,10 +54,7 @@ local function GetClosestTarget()
     
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr and plr ~= LocalPlayer and Utils.IsAlive(plr) then
-            -- Check custom team targeting
-            if plr.Team and not ShouldTargetTeam(plr.Team.Name) then 
-                continue 
-            end
+            if Settings.Aim.TeamCheck and not Utils.IsHostileTeam(plr) then continue end
             
             local part = plr.Character and plr.Character:FindFirstChild(Settings.Aim.BodyPart)
             if part then
