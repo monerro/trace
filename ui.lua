@@ -63,6 +63,14 @@ AimbotBox:AddToggle('ADSOnly', {
     Callback = function(val) Settings.Aim.ADSOnly = val end
 })
 
+AimbotBox:AddToggle('WallCheck', {
+    Text = 'Wall Check',
+    Default = true,
+    Tooltip = 'Prevents aiming through walls',
+    Callback = function(val) 
+        Settings.Aim.WallCheck = val 
+    end
+})
 AimbotBox:AddSlider('Smoothness', {
     Text = 'Smoothness',
     Default = 15,
