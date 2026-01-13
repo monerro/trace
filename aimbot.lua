@@ -87,6 +87,70 @@ local aimbotToggled = false
 local lastUpdate = 0
 local UPDATE_RATE = 1/60
 
+--// =========================
+--// HITSOUND SYSTEM (INTEGRATED WITH AIMBOT)
+--// =========================
+local HitSounds = {
+    Bameware = "rbxassetid://3124331820",
+    Bell = "rbxassetid://6534947240",
+    Bubble = "rbxassetid://6534947588",
+    Pick = "rbxassetid://1347140027",
+    Pop = "rbxassetid://198598793",
+    Rust = "rbxassetid://1255040462",
+    Skeet = "rbxassetid://5447626464",
+    Neverlose = "rbxassetid://6534947588"
+}
+
+local lastHitTime = 0
+local HIT_COOLDOWN = 0.5  -- Prevent sound spam
+local lastTargetHealth = {}
+
+local function playAimbotHitSound()
+    if not Settings.Damage or not Settings.Damage.HitSound then return end
+    
+    local soundId = HitSounds[Settings.Damage.HitSoundType] or HitSounds.Skeet
+    
+    local sound = Instance.new("Sound")
+    sound.SoundId = soundId
+    sound.Volume = Settings.Damage.HitSoundVolume or 0.5
+    sound.Parent = game:GetService("SoundService")
+    sound:Play()
+    
+    sound.Ended:Once(function()
+        sound:Destroy()
+    end)
+end
+
+-- Function to check if aimbot is dealing damage
+local function checkForAimbotDamage()
+    if not CurrentTarget then return end
+    if not CurrentTarget.Character then return end
+    
+    local humanoid = CurrentTarget.Character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    -- Get current health
+    local currentHealth = humanoid.Health
+    local lastHealth = lastTargetHealth[CurrentTarget] or currentHealth
+    
+    -- Check if health decreased (we hit them)
+    if currentHealth < lastHealth then
+        local damage = lastHealth - currentHealth
+        local currentTime = tick()
+        
+        -- Only play sound every HIT_COOLDOWN seconds
+        if currentTime - lastHitTime > HIT_COOLDOWN then
+            playAimbotHitSound()
+            lastHitTime = currentTime
+            
+            print("[TR4CE] Aimbot hit: " .. CurrentTarget.Name .. " -" .. damage .. "HP")
+        end
+    end
+    
+    -- Store current health for next check
+    lastTargetHealth[CurrentTarget] = humanoid.Health
+end
+
 RunService.RenderStepped:Connect(function()
     local now = tick()
     
@@ -147,6 +211,8 @@ RunService.RenderStepped:Connect(function()
             local direction = (targetPos - camCF.Position).Unit
             local goal = CFrame.new(camCF.Position, camCF.Position + direction)
             Camera.CFrame = camCF:Lerp(goal, Settings.Aim.Smoothness)
+
+            checkForAimbotDamage()
         end
     end
 end)
