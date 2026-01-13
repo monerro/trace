@@ -143,37 +143,44 @@ end
 -- FIXED: Complete trackPlayerForDamage function
 local function trackPlayerForDamage(targetPlayer)
     if trackedPlayers[targetPlayer] then return end
+    if targetPlayer == LocalPlayer then return end
     
     local function onCharacterAdded(character)
         local humanoid = character:WaitForChild("Humanoid", 5)
         if not humanoid then return end
         
-        local connection = humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-            local oldHealth = humanoid:GetAttribute("LastHealth") or humanoid.MaxHealth
-            local newHealth = humanoid.Health
-            
-            if oldHealth > newHealth then
-                local damage = oldHealth - newHealth
-                local isCritical = damage > (humanoid.MaxHealth * 0.3) -- Critical if >30% of max health
-                createDamageLabel(damage, isCritical)
+        local lastHealth = humanoid.Health
+        local wasOurTarget = false  -- Track if they were our target
+        
+        local connection = humanoid.HealthChanged:Connect(function(newHealth)
+            if newHealth < lastHealth then
+                local damage = lastHealth - newHealth
+                
+                -- 🔥 KEY FIX: Only play sound if:
+                -- 1. They are CURRENTLY our aimbot target
+                -- 2. AND our aimbot is ACTIVE (holding key or toggled on)
+                local isAimbotActive = false
+                if Settings.Aim.HoldMode then
+                    isAimbotActive = Settings.Aim.Enabled and UserInputService:IsKeyDown(Settings.Aim.HoldKey)
+                else
+                    isAimbotActive = Settings.Aim.Enabled and aimbotToggled
+                end
+                
+                if CurrentTarget == targetPlayer and isAimbotActive then
+                    local isCritical = damage >= Settings.Damage.CriticalThreshold
+                    createDamageLabel(damage, isCritical)
+                end
             end
-            
-            humanoid:SetAttribute("LastHealth", newHealth)
+            lastHealth = newHealth
         end)
         
         trackedPlayers[targetPlayer] = connection
         
-        -- Initialize last health
-        humanoid:SetAttribute("LastHealth", humanoid.Health)
-        
-        -- Clean up when character is removed
         character.AncestryChanged:Connect(function()
-            if character.Parent == nil then
-                if connection then
-                    connection:Disconnect()
-                end
-                trackedPlayers[targetPlayer] = nil
+            if connection then
+                connection:Disconnect()
             end
+            trackedPlayers[targetPlayer] = nil
         end)
     end
     
