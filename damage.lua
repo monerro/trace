@@ -4,7 +4,7 @@ local Players = _G.Players
 local Camera = _G.Camera
 local LocalPlayer = _G.LocalPlayer
 local Settings = _G.Settings
-
+local CurrentTarget = _G.CurrentTarget
 local DamageIndicatorGui = nil
 local trackedPlayers = {}
 local damageStack = {}
