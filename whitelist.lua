@@ -1,7 +1,7 @@
 --// WHITELIST SYSTEM
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local HttpService = game:GetService("HttpService")
+local Players = _G.Players
+local LocalPlayer = _G.LocalPlayer
+local HttpService = _G.HttpService
 
 local WHITELIST = {
     ["iswagtothemax"] = true,
@@ -50,8 +50,4 @@ sendWebhook(
     3066993
 )
 
--- Export if needed by other modules
-return {
-    sendWebhook = sendWebhook,
-    WHITELIST = WHITELIST
-}
+print("[TR4CE] Whitelist check passed")
