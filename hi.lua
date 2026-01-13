@@ -1,4 +1,5 @@
 --// TR4CE DEBUG LOADER
+-- Updated: [current time]
 print("[DEBUG] Starting TR4CE loader...")
 
 -- Test if we can reach GitHub
