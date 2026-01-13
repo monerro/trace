@@ -73,4 +73,4 @@ local Settings = {
 -- Make settings global for other modules
 _G.Settings = Settings
 
-return Settings
+print("[TR4CE] Configuration loaded")
