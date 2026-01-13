@@ -1,62 +1,53 @@
---// DAMAGE INDICATOR SYSTEM - FIXED VERSION
-
-local function waitForDependency(name)
-    for i = 1, 50 do  -- 5 second timeout
-        if _G[name] ~= nil then
-            return _G[name]
-        end
-        task.wait(0.1)
-    end
-    return nil
-end
+--// DAMAGE INDICATOR SYSTEM - AIMBOT ONLY VERSION
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local Settings = _G.Settings or {}
-local DamageIndicatorGui = nil
-local trackedPlayers = {}
-local damageStack = {}
 
--- Ensure Settings.Damage exists
+-- Wait for Settings to load
+local Settings = _G.Settings
+if not Settings then
+    for i = 1, 30 do
+        if _G.Settings then
+            Settings = _G.Settings
+            break
+        end
+        task.wait(0.1)
+    end
+    if not Settings then
+        Settings = {}
+        _G.Settings = Settings
+    end
+end
+
+-- Ensure Damage settings exist
 if not Settings.Damage then 
     Settings.Damage = {
         Enabled = false,
         HitSound = false,
         HitSoundType = "Skeet",
         HitSoundVolume = 0.5,
-        TextSize = 18,
-        CriticalSize = 24,
-        NormalColor = Color3.fromRGB(255, 255, 255),
-        CriticalColor = Color3.fromRGB(255, 50, 50),
-        OutlineColor = Color3.fromRGB(0, 0, 0),
-        Duration = 2,
-        FloatHeight = 2,
-        OffsetX = 0,
-        OffsetY = 0,
-        AimbotOnly = true  -- NEW: Only play for aimbot hits
+        AimbotOnly = true  -- TRUE = only aimbot hits
     }
 end
 
--- These need to be accessed from main script
-local function getCurrentTarget()
-    return _G.CurrentTarget or nil
-end
+local DamageIndicatorGui = nil
+local damageStack = {}
+local trackingConnection = nil
 
-local function isAimbotActive()
-    -- Check main script's aimbot state
-    if Settings.Aim and Settings.Aim.Enabled then
-        if Settings.Aim.HoldMode then
-            return UserInputService:IsKeyDown(Settings.Aim.HoldKey or Enum.KeyCode.E)
-        else
-            return _G.aimbotToggled or false
-        end
-    end
-    return false
-end
+-- Hit sounds
+local HitSounds = {
+    Bameware = "rbxassetid://3124331820",
+    Bell = "rbxassetid://6534947240",
+    Bubble = "rbxassetid://6534947588",
+    Pick = "rbxassetid://1347140027",
+    Pop = "rbxassetid://198598793",
+    Rust = "rbxassetid://1255040462",
+    Skeet = "rbxassetid://5447626464",
+    Neverlose = "rbxassetid://6534947588"
+}
 
 local function setupDamageGui()
     if DamageIndicatorGui then 
@@ -69,7 +60,6 @@ local function setupDamageGui()
     DamageIndicatorGui.ResetOnSpawn = false
     DamageIndicatorGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
-    -- Parent to appropriate GUI
     if gethui then
         DamageIndicatorGui.Parent = gethui()
     elseif syn and syn.protect_gui then
@@ -78,26 +68,12 @@ local function setupDamageGui()
     else
         DamageIndicatorGui.Parent = game:GetService("CoreGui")
     end
-    
-    print("[TR4CE] Damage GUI created")
 end
-
-local HitSounds = {
-    Bameware = "rbxassetid://3124331820",
-    Bell = "rbxassetid://6534947240",
-    Bubble = "rbxassetid://6534947588",
-    Pick = "rbxassetid://1347140027",
-    Pop = "rbxassetid://198598793",
-    Rust = "rbxassetid://1255040462",
-    Skeet = "rbxassetid://5447626464",
-    Neverlose = "rbxassetid://6534947588"
-}
 
 local function playHitSound()
     if not Settings.Damage.HitSound then return end
     
-    local soundId = HitSounds[Settings.Damage.HitSoundType] 
-    if not soundId then soundId = HitSounds.Skeet end
+    local soundId = HitSounds[Settings.Damage.HitSoundType] or HitSounds.Skeet
     
     local sound = Instance.new("Sound")
     sound.SoundId = soundId
@@ -120,10 +96,10 @@ local function createDamageLabel(damage, isCritical)
     label.BackgroundTransparency = 1
     label.Text = "-" .. tostring(math.floor(damage))
     label.Font = Enum.Font.GothamBold
-    label.TextSize = isCritical and Settings.Damage.CriticalSize or Settings.Damage.TextSize
-    label.TextColor3 = isCritical and Settings.Damage.CriticalColor or Settings.Damage.NormalColor
+    label.TextSize = isCritical and 32 or 24
+    label.TextColor3 = isCritical and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(255, 255, 255)
     label.TextStrokeTransparency = 0.5
-    label.TextStrokeColor3 = Settings.Damage.OutlineColor or Color3.new(0,0,0)
+    label.TextStrokeColor3 = Color3.new(0,0,0)
     label.TextTransparency = 0
     label.Parent = DamageIndicatorGui
     
@@ -131,16 +107,16 @@ local function createDamageLabel(damage, isCritical)
     local stackOffset = #damageStack * 30
     
     label.Position = UDim2.new(
-        0, screenCenter.X + (Settings.Damage.OffsetX or 0) - 50, 
-        0, screenCenter.Y + (Settings.Damage.OffsetY or 0) - 25 + stackOffset
+        0, screenCenter.X + 50, 
+        0, screenCenter.Y - 25 + stackOffset
     )
     
     table.insert(damageStack, label)
     
     local startPos = label.Position
-    local endPos = startPos - UDim2.new(0, 0, 0, (Settings.Damage.FloatHeight or 2) * 30)
+    local endPos = startPos - UDim2.new(0, 0, 0, 60)
     
-    local tweenInfo = TweenInfo.new(Settings.Damage.Duration or 2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tweenInfo = TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local tween = TweenService:Create(label, tweenInfo, {
         Position = endPos,
         TextTransparency = 1,
@@ -148,21 +124,7 @@ local function createDamageLabel(damage, isCritical)
     })
     tween:Play()
     
-    if isCritical then
-        task.spawn(function()
-            local scaleTween = TweenService:Create(label, TweenInfo.new(0.3), {
-                TextSize = (Settings.Damage.CriticalSize or 24) * 1.2
-            })
-            scaleTween:Play()
-            task.wait(0.1)
-            scaleTween = TweenService:Create(label, TweenInfo.new(0.2), {
-                TextSize = Settings.Damage.CriticalSize or 24
-            })
-            scaleTween:Play()
-        end)
-    end
-    
-    task.delay(Settings.Damage.Duration or 2, function()
+    task.delay(2, function()
         for i, v in ipairs(damageStack) do
             if v == label then
                 table.remove(damageStack, i)
@@ -173,57 +135,71 @@ local function createDamageLabel(damage, isCritical)
     end)
 end
 
-local function trackPlayerForDamage(targetPlayer)
-    if trackedPlayers[targetPlayer] then return end
-    if targetPlayer == LocalPlayer then return end
+-- 🎯 KEY FIX: Track ONLY the aimbot target's damage
+local function trackAimbotTargetDamage()
+    if trackingConnection then
+        trackingConnection:Disconnect()
+        trackingConnection = nil
+    end
     
-    local function onCharacterAdded(character)
-        local humanoid = character:WaitForChild("Humanoid", 5)
-        if not humanoid then return end
+    -- Function to check and track current target
+    local function checkCurrentTarget()
+        local currentTarget = _G.CurrentTarget
         
-        local lastHealth = humanoid.Health
-        
-        local connection = humanoid.HealthChanged:Connect(function(newHealth)
-            if newHealth < lastHealth then
-                local damage = lastHealth - newHealth
-                local shouldPlaySound = true
+        -- If we have a target and aimbot is active, track their damage
+        if currentTarget and currentTarget.Character then
+            local humanoid = currentTarget.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                local lastHealth = humanoid.Health
                 
-                -- CHECK: Only play for aimbot hits if AimbotOnly is enabled
-                if Settings.Damage.AimbotOnly then
-                    local currentTarget = getCurrentTarget()
-                    local isAimbotActiveNow = isAimbotActive()
-                    
-                    shouldPlaySound = (currentTarget == targetPlayer) and isAimbotActiveNow
-                    
-                    -- Debug output
-                    if shouldPlaySound then
-                        print("[TR4CE] Aimbot hit detected: " .. targetPlayer.Name .. " -" .. damage .. "HP")
+                trackingConnection = humanoid.HealthChanged:Connect(function(newHealth)
+                    if newHealth < lastHealth then
+                        local damage = lastHealth - newHealth
+                        
+                        -- Check if aimbot is ACTIVE (not just enabled)
+                        local isAimbotActive = false
+                        if Settings.Aim and Settings.Aim.Enabled then
+                            if Settings.Aim.HoldMode then
+                                isAimbotActive = UserInputService:IsKeyDown(Settings.Aim.HoldKey or Enum.KeyCode.E)
+                            else
+                                isAimbotActive = _G.aimbotToggled or false
+                            end
+                        end
+                        
+                        -- Only show damage if aimbot is actively aiming OR if AimbotOnly is false
+                        if (not Settings.Damage.AimbotOnly) or isAimbotActive then
+                            local isCritical = damage >= 50
+                            createDamageLabel(damage, isCritical)
+                        end
                     end
-                end
+                    lastHealth = newHealth
+                end)
                 
-                if shouldPlaySound then
-                    local isCritical = damage >= (Settings.Damage.CriticalThreshold or 50)
-                    createDamageLabel(damage, isCritical)
-                end
+                print("[TR4CE] Now tracking damage for aimbot target: " .. currentTarget.Name)
             end
-            lastHealth = newHealth
-        end)
-        
-        trackedPlayers[targetPlayer] = connection
-        
-        character.AncestryChanged:Connect(function()
-            if connection then
-                connection:Disconnect()
-            end
-            trackedPlayers[targetPlayer] = nil
-        end)
+        end
     end
     
-    if targetPlayer.Character then
-        onCharacterAdded(targetPlayer.Character)
-    end
+    -- Run initial check
+    checkCurrentTarget()
     
-    targetPlayer.CharacterAdded:Connect(onCharacterAdded)
+    -- Also check when CurrentTarget changes
+    local targetCheckConnection
+    targetCheckConnection = RunService.Heartbeat:Connect(function()
+        local oldTarget = _G.LastTrackedTarget
+        local newTarget = _G.CurrentTarget
+        
+        if oldTarget ~= newTarget then
+            if trackingConnection then
+                trackingConnection:Disconnect()
+                trackingConnection = nil
+            end
+            checkCurrentTarget()
+            _G.LastTrackedTarget = newTarget
+        end
+    end)
+    
+    return targetCheckConnection
 end
 
 local function enableDamageIndicator()
@@ -231,45 +207,39 @@ local function enableDamageIndicator()
         setupDamageGui()
     end
     
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            trackPlayerForDamage(plr)
-        end
+    print("[TR4CE] Damage system: AimbotOnly = " .. tostring(Settings.Damage.AimbotOnly))
+    
+    -- Start tracking aimbot target damage
+    _G.damageTracker = trackAimbotTargetDamage()
+    
+    -- If AimbotOnly is FALSE, also track all players (old behavior)
+    if not Settings.Damage.AimbotOnly then
+        print("[TR4CE] WARNING: Tracking ALL player damage (AimbotOnly = false)")
     end
-    
-    Players.PlayerAdded:Connect(function(plr)
-        trackPlayerForDamage(plr)
-    end)
-    
-    Players.PlayerRemoving:Connect(function(plr)
-        if trackedPlayers[plr] then
-            trackedPlayers[plr]:Disconnect()
-            trackedPlayers[plr] = nil
-        end
-    end)
 end
 
 local function disableDamageIndicator()
-    for plr, connection in pairs(trackedPlayers) do
-        if connection then
-            connection:Disconnect()
-        end
+    if _G.damageTracker then
+        _G.damageTracker:Disconnect()
+        _G.damageTracker = nil
     end
-    trackedPlayers = {}
+    
+    if trackingConnection then
+        trackingConnection:Disconnect()
+        trackingConnection = nil
+    end
     
     if DamageIndicatorGui then
         DamageIndicatorGui:Destroy()
         DamageIndicatorGui = nil
     end
+    
     damageStack = {}
 end
 
--- Export to _G so main script can access
+-- Export functions
 _G.enableDamageIndicator = enableDamageIndicator
 _G.disableDamageIndicator = disableDamageIndicator
 _G.createDamageLabel = createDamageLabel
 
--- Add these to your main script too!
-_G.trackPlayerForDamage = trackPlayerForDamage
-
-print("[TR4CE] Damage indicator system loaded with aimbot-only hits")
+print("[TR4CE] Damage system loaded - Aimbot hits only: " .. tostring(Settings.Damage.AimbotOnly))
