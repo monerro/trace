@@ -80,6 +80,53 @@ AimbotBox:AddDropdown('TargetPart', {
     Text = 'Target Part',
     Callback = function(val) Settings.Aim.BodyPart = val end
 })
+AimbotBox:AddToggle('WallCheck', {
+    Text = 'Wall Check',
+    Default = false,
+    Tooltip = 'Only aim through walls',
+    Callback = function(val) Settings.Aim.WallCheck = val end
+})
+
+AimbotBox:AddToggle('CustomTeams', {
+    Text = 'Custom Team Targeting',
+    Default = false,
+    Tooltip = 'Choose which teams to aim at',
+    Callback = function(val) 
+        Settings.Aim.CustomTeams = val 
+    end
+})
+
+-- Add team selection (add this after the toggles)
+local TeamSelector = AimbotBox:AddDropdown('TeamSelection', {
+    Values = {'Class-D', 'Chaos Insurgency', 'Security Department', 'Scientific Department', 
+              'Medical Department', 'Rapid Response', 'Mobile Task Force', 'Internal Security'},
+    Default = 1,
+    Multi = true,
+    Text = 'Target Teams',
+    Callback = function(selected)
+        -- Reset all to false
+        for teamName, _ in pairs(Settings.Aim.TargetTeams) do
+            Settings.Aim.TargetTeams[teamName] = false
+        end
+        
+        -- Set selected teams to true
+        for _, team in ipairs(selected) do
+            local teamLower = team:lower()
+            Settings.Aim.TargetTeams[teamLower] = true
+        end
+    end
+})
+
+-- Set initial selection based on config
+local initialSelection = {}
+for teamName, isSelected in pairs(Settings.Aim.TargetTeams) do
+    if isSelected then
+        -- Convert "class-d" to "Class-D" for UI
+        local displayName = teamName:gsub("^%l", string.upper):gsub("%-d", "-D")
+        table.insert(initialSelection, displayName)
+    end
+end
+TeamSelector:SetValues(initialSelection)
 
 local FOVBox = Tabs.Aimbot:AddRightGroupbox('FOV Settings')
 FOVBox:AddToggle('FOVCircle', {
