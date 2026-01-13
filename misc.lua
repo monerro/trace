@@ -4,7 +4,7 @@ local UserInputService = _G.UserInputService
 local Players = _G.Players
 local TweenService = _G.TweenService
 local LocalPlayer = _G.LocalPlayer
-local Lighting = game:GetService("Lighting")
+local Lighting = _G.Lighting
 local Settings = _G.Settings
 local Library = _G.Library
 
