@@ -331,6 +331,26 @@ DamageBox:AddSlider('HitSoundVolume', {
     Callback = function(val) Settings.Damage.HitSoundVolume = val / 100 end
 })
 
+DamageBox:AddToggle('AimbotOnly', {
+    Text = 'Aimbot Hits Only',
+    Default = true,
+    Tooltip = 'ONLY play hitsounds for aimbot hits',
+    Callback = function(val) 
+        Settings.Damage.AimbotOnly = val 
+        
+        -- Restart damage system with new setting
+        if _G.disableDamageIndicator then
+            _G.disableDamageIndicator()
+        end
+        if _G.enableDamageIndicator and Settings.Damage.Enabled then
+            task.wait(0.1)
+            _G.enableDamageIndicator()
+        end
+        
+        Library:Notify('Aimbot-only hits: ' .. (val and 'ON' or 'OFF'), 2)
+    end
+})
+
 -- Config Tab
 local ConfigBox = Tabs.Config:AddLeftGroupbox('Information')
 ConfigBox:AddLabel('SCP Roleplay Framework')
