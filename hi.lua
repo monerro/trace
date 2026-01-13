@@ -1,4 +1,5 @@
 --// TR4CE MINIMAL TEST
+-- Updated: [current time]
 print("[TR4CE] Starting minimal test...")
 
 local repo = "https://raw.githubusercontent.com/monerro/trace/main/"
