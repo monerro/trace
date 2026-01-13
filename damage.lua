@@ -1,20 +1,20 @@
 --// DAMAGE INDICATOR SYSTEM - FIXED VERSION
-local TweenService = _G.TweenService
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local Settings = _G.Settings
+local Settings = _G.Settings or {}
 local DamageIndicatorGui = nil
 local trackedPlayers = {}
 local damageStack = {}
 
--- Initialize if Settings doesn't exist
-if not Settings then Settings = {} end
+-- Ensure Settings.Damage exists
 if not Settings.Damage then 
     Settings.Damage = {
-        Enabled = true,
-        HitSound = true,
+        Enabled = false,
+        HitSound = false,
         HitSoundType = "Skeet",
         HitSoundVolume = 0.5,
         TextSize = 18,
@@ -25,18 +25,40 @@ if not Settings.Damage then
         Duration = 2,
         FloatHeight = 2,
         OffsetX = 0,
-        OffsetY = 0
+        OffsetY = 0,
+        AimbotOnly = true  -- NEW: Only play for aimbot hits
     }
 end
 
+-- These need to be accessed from main script
+local function getCurrentTarget()
+    return _G.CurrentTarget or nil
+end
+
+local function isAimbotActive()
+    -- Check main script's aimbot state
+    if Settings.Aim and Settings.Aim.Enabled then
+        if Settings.Aim.HoldMode then
+            return UserInputService:IsKeyDown(Settings.Aim.HoldKey or Enum.KeyCode.E)
+        else
+            return _G.aimbotToggled or false
+        end
+    end
+    return false
+end
+
 local function setupDamageGui()
-    if DamageIndicatorGui then DamageIndicatorGui:Destroy() end
+    if DamageIndicatorGui then 
+        DamageIndicatorGui:Destroy() 
+        DamageIndicatorGui = nil
+    end
     
     DamageIndicatorGui = Instance.new("ScreenGui")
     DamageIndicatorGui.Name = "DamageIndicator"
     DamageIndicatorGui.ResetOnSpawn = false
     DamageIndicatorGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
+    -- Parent to appropriate GUI
     if gethui then
         DamageIndicatorGui.Parent = gethui()
     elseif syn and syn.protect_gui then
@@ -140,7 +162,6 @@ local function createDamageLabel(damage, isCritical)
     end)
 end
 
--- FIXED: Complete trackPlayerForDamage function
 local function trackPlayerForDamage(targetPlayer)
     if trackedPlayers[targetPlayer] then return end
     if targetPlayer == LocalPlayer then return end
@@ -150,24 +171,27 @@ local function trackPlayerForDamage(targetPlayer)
         if not humanoid then return end
         
         local lastHealth = humanoid.Health
-        local wasOurTarget = false  -- Track if they were our target
         
         local connection = humanoid.HealthChanged:Connect(function(newHealth)
             if newHealth < lastHealth then
                 local damage = lastHealth - newHealth
+                local shouldPlaySound = true
                 
-                -- 🔥 KEY FIX: Only play sound if:
-                -- 1. They are CURRENTLY our aimbot target
-                -- 2. AND our aimbot is ACTIVE (holding key or toggled on)
-                local isAimbotActive = false
-                if Settings.Aim.HoldMode then
-                    isAimbotActive = Settings.Aim.Enabled and UserInputService:IsKeyDown(Settings.Aim.HoldKey)
-                else
-                    isAimbotActive = Settings.Aim.Enabled and aimbotToggled
+                -- CHECK: Only play for aimbot hits if AimbotOnly is enabled
+                if Settings.Damage.AimbotOnly then
+                    local currentTarget = getCurrentTarget()
+                    local isAimbotActiveNow = isAimbotActive()
+                    
+                    shouldPlaySound = (currentTarget == targetPlayer) and isAimbotActiveNow
+                    
+                    -- Debug output
+                    if shouldPlaySound then
+                        print("[TR4CE] Aimbot hit detected: " .. targetPlayer.Name .. " -" .. damage .. "HP")
+                    end
                 end
                 
-                if CurrentTarget == targetPlayer and isAimbotActive then
-                    local isCritical = damage >= Settings.Damage.CriticalThreshold
+                if shouldPlaySound then
+                    local isCritical = damage >= (Settings.Damage.CriticalThreshold or 50)
                     createDamageLabel(damage, isCritical)
                 end
             end
@@ -229,14 +253,12 @@ local function disableDamageIndicator()
     damageStack = {}
 end
 
--- Main initialization
-if Settings.Damage.Enabled then
-    enableDamageIndicator()
-end
-
--- Export functions
+-- Export to _G so main script can access
 _G.enableDamageIndicator = enableDamageIndicator
 _G.disableDamageIndicator = disableDamageIndicator
 _G.createDamageLabel = createDamageLabel
 
-print("[TR4CE] Damage indicator system loaded successfully")
+-- Add these to your main script too!
+_G.trackPlayerForDamage = trackPlayerForDamage
+
+print("[TR4CE] Damage indicator system loaded with aimbot-only hits")
