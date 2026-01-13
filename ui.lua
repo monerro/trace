@@ -6,6 +6,7 @@ local Library = _G.Library
 local ThemeManager = _G.ThemeManager
 local SaveManager = _G.SaveManager
 
+-- Create Window
 local Window = Library:CreateWindow({
     Title = 'TR4CE SCP Roleplay Framework',
     Center = true,
@@ -25,7 +26,7 @@ Library.FontColor = Color3.fromRGB(255, 255, 255)
 Library:SetWatermarkVisibility(true)
 Library:SetWatermark('TR4CE SCP | ' .. LocalPlayer.Name)
 
--- Tabs
+-- Create tabs
 local Tabs = {
     Aimbot = Window:AddTab('Aimbot'),
     Visuals = Window:AddTab('Visuals'),
@@ -34,8 +35,9 @@ local Tabs = {
     ['UI Settings'] = Window:AddTab('UI Settings')
 }
 
--- Aimbot Tab
+-- ========== AIMBOT TAB ==========
 local AimbotBox = Tabs.Aimbot:AddLeftGroupbox('Aimbot Settings')
+
 AimbotBox:AddToggle('AimbotEnabled', {
     Text = 'Enable Aimbot',
     Default = false,
@@ -46,6 +48,12 @@ AimbotBox:AddToggle('TeamCheck', {
     Text = 'Team Check',
     Default = true,
     Callback = function(val) Settings.Aim.TeamCheck = val end
+})
+
+AimbotBox:AddToggle('WallCheck', {
+    Text = 'Wall Check',
+    Default = false,
+    Callback = function(val) Settings.Aim.WallCheck = val end
 })
 
 AimbotBox:AddToggle('HoldMode', {
@@ -61,6 +69,15 @@ AimbotBox:AddToggle('ADSOnly', {
     Text = 'Aim Only When ADSing',
     Default = true,
     Callback = function(val) Settings.Aim.ADSOnly = val end
+})
+
+-- Custom Team Targeting
+AimbotBox:AddToggle('CustomTeams', {
+    Text = 'Custom Team Targeting',
+    Default = false,
+    Callback = function(val) 
+        Settings.Aim.CustomTeams = val 
+    end
 })
 
 AimbotBox:AddSlider('Smoothness', {
@@ -80,36 +97,24 @@ AimbotBox:AddDropdown('TargetPart', {
     Text = 'Target Part',
     Callback = function(val) Settings.Aim.BodyPart = val end
 })
-AimbotBox:AddToggle('WallCheck', {
-    Text = 'Wall Check',
-    Default = false,
-    Tooltip = 'Only aim through walls',
-    Callback = function(val) Settings.Aim.WallCheck = val end
-})
 
-AimbotBox:AddToggle('CustomTeams', {
-    Text = 'Custom Team Targeting',
-    Default = false,
-    Tooltip = 'Choose which teams to aim at',
-    Callback = function(val) 
-        Settings.Aim.CustomTeams = val 
-    end
-})
+-- Team Selection (only shown when CustomTeams is enabled)
+local teamOptions = {'Class-D', 'Chaos Insurgency', 'Security Department', 
+                     'Scientific Department', 'Medical Department', 
+                     'Rapid Response', 'Mobile Task Force', 'Internal Security'}
 
--- Add team selection (add this after the toggles)
-local TeamSelector = AimbotBox:AddDropdown('TeamSelection', {
-    Values = {'Class-D', 'Chaos Insurgency', 'Security Department', 'Scientific Department', 
-              'Medical Department', 'Rapid Response', 'Mobile Task Force', 'Internal Security'},
+local teamSelector = AimbotBox:AddDropdown('TargetTeams', {
+    Values = teamOptions,
     Default = 1,
     Multi = true,
-    Text = 'Target Teams',
+    Text = 'Select Target Teams',
     Callback = function(selected)
-        -- Reset all to false
+        -- Reset all
         for teamName, _ in pairs(Settings.Aim.TargetTeams) do
             Settings.Aim.TargetTeams[teamName] = false
         end
         
-        -- Set selected teams to true
+        -- Set selected
         for _, team in ipairs(selected) do
             local teamLower = team:lower()
             Settings.Aim.TargetTeams[teamLower] = true
@@ -117,18 +122,21 @@ local TeamSelector = AimbotBox:AddDropdown('TeamSelection', {
     end
 })
 
--- Set initial selection based on config
-local initialSelection = {}
-for teamName, isSelected in pairs(Settings.Aim.TargetTeams) do
-    if isSelected then
-        -- Convert "class-d" to "Class-D" for UI
-        local displayName = teamName:gsub("^%l", string.upper):gsub("%-d", "-D")
-        table.insert(initialSelection, displayName)
+-- Set initial selection
+local initialTeams = {}
+for teamName, isTarget in pairs(Settings.Aim.TargetTeams) do
+    if isTarget then
+        -- Format for display
+        local displayName = teamName:gsub("^%l", string.upper)
+        if displayName == "Class-d" then displayName = "Class-D" end
+        table.insert(initialTeams, displayName)
     end
 end
-TeamSelector:SetValues(initialSelection)
+teamSelector:SetValues(initialTeams)
 
+-- FOV Settings
 local FOVBox = Tabs.Aimbot:AddRightGroupbox('FOV Settings')
+
 FOVBox:AddToggle('FOVCircle', {
     Text = 'Show FOV Circle',
     Default = true,
@@ -145,17 +153,9 @@ FOVBox:AddSlider('FOVRadius', {
     Callback = function(val) Settings.FOV.Radius = val end
 })
 
-FOVBox:AddSlider('FOVScale', {
-    Text = 'FOV Scale',
-    Default = 1,
-    Min = 1,
-    Max = 3,
-    Rounding = 1,
-    Callback = function(val) Settings.FOV.Scale = val end
-})
-
--- Visuals Tab
+-- ========== VISUALS TAB ==========
 local ESPBox = Tabs.Visuals:AddLeftGroupbox('ESP Settings')
+
 ESPBox:AddToggle('ESPEnabled', {
     Text = 'Enable ESP',
     Default = false,
@@ -174,28 +174,10 @@ ESPBox:AddToggle('ShowBoxes', {
     Callback = function(val) Settings.ESP.ShowBoxes = val end
 })
 
-ESPBox:AddToggle('ShowSkeleton', {
-    Text = 'Show Skeleton',
-    Default = false,
-    Callback = function(val) Settings.ESP.ShowSkeleton = val end
-})
-
 ESPBox:AddToggle('ShowNames', {
     Text = 'Show Names',
     Default = true,
     Callback = function(val) Settings.ESP.ShowNames = val end
-})
-
-ESPBox:AddToggle('ShowTeam', {
-    Text = 'Show Team',
-    Default = true,
-    Callback = function(val) Settings.ESP.ShowTeam = val end
-})
-
-ESPBox:AddToggle('ShowDistance', {
-    Text = 'Show Distance',
-    Default = true,
-    Callback = function(val) Settings.ESP.ShowDistance = val end
 })
 
 ESPBox:AddToggle('ShowHealth', {
@@ -204,68 +186,41 @@ ESPBox:AddToggle('ShowHealth', {
     Callback = function(val) Settings.ESP.ShowHealth = val end
 })
 
-ESPBox:AddToggle('ShowVisibility', {
-    Text = 'Show Visibility',
-    Default = true,
-    Callback = function(val) Settings.ESP.ShowVisibility = val end
-})
-
-local ESPCustomBox = Tabs.Visuals:AddRightGroupbox('ESP Customization')
-ESPCustomBox:AddSlider('ESPSize', {
-    Text = 'Text Size',
-    Default = 13,
-    Min = 8,
-    Max = 20,
-    Rounding = 0,
-    Callback = function(val) Settings.ESP.Size = val end
-})
-
-ESPCustomBox:AddSlider('BoxThickness', {
-    Text = 'Box Thickness',
-    Default = 1,
-    Min = 1,
-    Max = 5,
-    Rounding = 0,
-    Callback = function(val) Settings.ESP.BoxThickness = val end
-})
+-- ESP Customization
+local ESPCustomBox = Tabs.Visuals:AddRightGroupbox('ESP Colors')
 
 ESPCustomBox:AddLabel('Class-D Color:'):AddColorPicker('ClassDColor', {
     Default = Settings.ESP.ClassDColor,
-    Title = 'Class-D ESP Color',
     Callback = function(val) Settings.ESP.ClassDColor = val end
 })
 
 ESPCustomBox:AddLabel('Security Color:'):AddColorPicker('SecurityColor', {
     Default = Settings.ESP.SecurityColor,
-    Title = 'Security ESP Color',
     Callback = function(val) Settings.ESP.SecurityColor = val end
 })
 
--- Misc Tab
-local MiscBox = Tabs.Misc:AddLeftGroupbox('Misc Features')
-MiscBox:AddButton('Force Target Lock', function()
-    _G.CurrentTarget = _G.GetClosestTarget()
-    if _G.CurrentTarget then
-        Library:Notify('Locked onto: ' .. _G.CurrentTarget.Name, 2)
-    else
-        Library:Notify('No target found', 2)
-    end
-end)
+-- ========== MISC TAB ==========
+local MiscBox = Tabs.Misc:AddLeftGroupbox('Player Features')
 
-MiscBox:AddButton('Clear Target', function()
-    _G.CurrentTarget = nil
-    Library:Notify('Target cleared', 2)
-end)
-
-MiscBox:AddDivider()
 MiscBox:AddToggle('HideCharacter', {
     Text = 'Hide Character',
     Default = false,
     Callback = function(val)
         Settings.Misc.HideCharacter = val
         if LocalPlayer.Character then
-            if val then _G.hideCharacter(LocalPlayer.Character)
-            else _G.showCharacter(LocalPlayer.Character) end
+            if val then 
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.LocalTransparencyModifier = 1
+                    end
+                end
+            else
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.LocalTransparencyModifier = 0
+                    end
+                end
+            end
         end
     end
 })
@@ -275,47 +230,31 @@ MiscBox:AddToggle('Noclip', {
     Default = false,
     Callback = function(val)
         Settings.Misc.Noclip = val
-        if val then _G.enableNoclip() else _G.disableNoclip() end
+        if val then 
+            _G.enableNoclip()
+        else 
+            _G.disableNoclip() 
+        end
     end
 })
 
-MiscBox:AddDivider()
 MiscBox:AddToggle('InfiniteJump', {
     Text = 'Infinite Jump',
     Default = false,
     Callback = function(val) Settings.Misc.InfiniteJump = val end
 })
 
-MiscBox:AddSlider('JumpPower', {
-    Text = 'Jump Power',
-    Default = 50,
-    Min = 10,
-    Max = 150,
-    Rounding = 0,
-    Callback = function(val) Settings.Misc.JumpPower = val end
-})
-
+-- Position Hider
 MiscBox:AddDivider()
-MiscBox:AddLabel("Position Hider:")
+MiscBox:AddLabel("Position Hider")
+
 MiscBox:AddToggle('PositionHiderEnabled', {
     Text = 'Enable Position Hider',
     Default = false,
     Callback = function(val) Settings.PositionHider.Enabled = val end
 })
 
-MiscBox:AddToggle('ShowClone', {
-    Text = 'Show Fake Clone',
-    Default = true,
-    Callback = function(val)
-        Settings.PositionHider.ShowClone = val
-        if not val and _G.visualClone then
-            _G.visualClone:Destroy()
-            _G.visualClone = nil
-        end
-    end
-})
-
-MiscBox:AddButton('Hide at Current Position', function()
+MiscBox:AddButton('Hide at Position', function()
     if Settings.PositionHider.Enabled then
         _G.simpleHideAtPosition()
     else
@@ -323,7 +262,9 @@ MiscBox:AddButton('Hide at Current Position', function()
     end
 end)
 
-local MiscBox2 = Tabs.Misc:AddRightGroupbox('Visual Enhancements')
+-- Visual Features
+local MiscBox2 = Tabs.Misc:AddRightGroupbox('Visual Features')
+
 MiscBox2:AddToggle('Fullbright', {
     Text = 'Fullbright',
     Default = false,
@@ -336,13 +277,19 @@ MiscBox2:AddToggle('Fullbright', {
     end
 })
 
+-- Damage Indicator
 local DamageBox = Tabs.Misc:AddRightGroupbox('Damage Indicator')
+
 DamageBox:AddToggle('DamageEnabled', {
     Text = 'Enable Damage Indicator',
     Default = false,
     Callback = function(val)
         Settings.Damage.Enabled = val
-        if val then _G.enableDamageIndicator() else _G.disableDamageIndicator() end
+        if val then 
+            _G.enableDamageIndicator() 
+        else 
+            _G.disableDamageIndicator() 
+        end
     end
 })
 
@@ -352,49 +299,39 @@ DamageBox:AddToggle('HitSound', {
     Callback = function(val) Settings.Damage.HitSound = val end
 })
 
-DamageBox:AddDropdown('HitSoundType', {
-    Values = {'Bameware', 'Bell', 'Bubble', 'Pick', 'Pop', 'Rust', 'Skeet', 'Neverlose'},
-    Default = 7,
-    Multi = false,
-    Text = 'Hit Sound Type',
-    Callback = function(val) Settings.Damage.HitSoundType = val end
-})
+-- ========== CONFIG TAB ==========
+local ConfigBox = Tabs.Config:AddLeftGroupbox('Framework Info')
 
-DamageBox:AddSlider('HitSoundVolume', {
-    Text = 'Hit Sound Volume',
-    Default = 50,
-    Min = 0,
-    Max = 100,
-    Rounding = 0,
-    Suffix = '%',
-    Callback = function(val) Settings.Damage.HitSoundVolume = val / 100 end
-})
-
--- Config Tab
-local ConfigBox = Tabs.Config:AddLeftGroupbox('Information')
-ConfigBox:AddLabel('SCP Roleplay Framework')
-ConfigBox:AddLabel('Version: 1.0')
+ConfigBox:AddLabel('TR4CE SCP Roleplay')
+ConfigBox:AddLabel('Version: 2.0 (Modular)')
 ConfigBox:AddDivider()
-ConfigBox:AddLabel('Team Detection:')
-ConfigBox:AddLabel('✓ Class-D vs Security')
-ConfigBox:AddLabel('✓ Smart ESP Filtering')
-ConfigBox:AddLabel('✓ Auto Team Colors')
+ConfigBox:AddLabel('Features:')
+ConfigBox:AddLabel('• Team-Based Aimbot')
+ConfigBox:AddLabel('• Custom ESP Colors')
+ConfigBox:AddLabel('• Position Hider')
+ConfigBox:AddLabel('• Damage Indicator')
 
--- UI Settings
+-- ========== UI SETTINGS TAB ==========
 local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
-MenuGroup:AddButton('Unload', function() Library:Unload() end)
 
-Library.ToggleKeybind = MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', {
+MenuGroup:AddButton('Unload Script', function() 
+    Library:Unload() 
+end)
+
+MenuGroup:AddLabel('Menu Keybind'):AddKeyPicker('MenuKeybind', {
     Default = 'End',
     NoUI = true,
-    Text = 'Menu keybind'
+    Text = 'Menu toggle key',
 })
 
+-- Theme Manager
 ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
 ThemeManager:SetFolder('TR4CE_SCP')
-SaveManager:SetFolder('TR4CE_SCP/configs')
-SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
 
-print("[TR4CE] UI loaded")
+-- Save Manager
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder('TR4CE_SCP/configs')
+SaveManager:BuildConfigSection(Tabs['UI Settings'])
+
+print("[TR4CE] UI loaded successfully")
