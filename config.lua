@@ -9,8 +9,8 @@ local Settings = {
         TeamCheck = true,
         WallCheck = false,
         StickyAim = false,
-        ADSOnly = true
-    },
+        ADSOnly = true,
+        
     FOV = {
         Enabled = true,
         DrawCircle = true,
