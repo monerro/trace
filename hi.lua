@@ -1,33 +1,34 @@
---// TR4CE | SCP ROLEPLAY Framework
---// Main Loader File
---// https://raw.githubusercontent.com/monerro/trace/main/%D0%B4.lua
+--// TR4CE DEBUG LOADER
+print("[DEBUG] Starting TR4CE loader...")
 
-local repo = "https://raw.githubusercontent.com/monerro/trace/main/"
+-- Test if we can reach GitHub
+local testURL = "https://raw.githubusercontent.com/monerro/trace/main/hi.lua"
+print("[DEBUG] Testing URL: " .. testURL)
 
--- Load dependencies first
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
-local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua"))()
+local success, result = pcall(function()
+    local content = game:HttpGet(testURL)
+    print("[DEBUG] Got content length: " .. tostring(#content))
+    return content
+end)
 
--- Store library globally for UI module
-_G.Library = Library
-_G.ThemeManager = ThemeManager
-_G.SaveManager = SaveManager
+if success then
+    print("[DEBUG] ✓ GitHub access successful")
+else
+    print("[DEBUG] ✗ GitHub access failed: " .. tostring(result))
+end
 
-print("[TR4CE] Loading modules...")
+-- Try loading the simplest possible module
+local simpleTest = [[
+    print("[DEBUG] Simple module loaded successfully!")
+    return {test = "success"}
+]]
 
--- Load modules in order
-loadstring(game:HttpGet(repo .. "services.lua"))()
-loadstring(game:HttpGet(repo .. "whitelist.lua"))()
-loadstring(game:HttpGet(repo .. "config.lua"))()
-loadstring(game:HttpGet(repo .. "utils.lua"))()
-loadstring(game:HttpGet(repo .. "aimbot.lua"))()
-loadstring(game:HttpGet(repo .. "esp.lua"))()
-loadstring(game:HttpGet(repo .. "damage.lua"))()
-loadstring(game:HttpGet(repo .. "misc.lua"))()
-loadstring(game:HttpGet(repo .. "ui.lua"))()
+local loaded = loadstring(simpleTest)
+if loaded then
+    print("[DEBUG] ✓ loadstring works")
+    loaded()
+else
+    print("[DEBUG] ✗ loadstring failed")
+end
 
-print("[TR4CE] All modules loaded successfully!")
-print("[TR4CE] Framework initialized for " .. game.Players.LocalPlayer.Name)
-
-Library:Notify('TR4CE SCP Roleplay loaded! Press END to toggle menu', 5)
+print("[DEBUG] Loader complete")
