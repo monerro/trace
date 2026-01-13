@@ -1,4 +1,4 @@
---// ESP SYSTEM
+--// ESP SYSTEM - COMPLETE WITH SKELETON
 local RunService = _G.RunService
 local Players = _G.Players
 local Camera = _G.Camera
@@ -55,6 +55,7 @@ local function CreateESP(plr)
     esp.box.Thickness = Settings.ESP.BoxThickness
     esp.box.Filled = false
     
+    -- Skeleton lines
     local skeletonParts = {
         {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
         {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"},
@@ -87,6 +88,7 @@ local function RemoveESP(plr)
     visibilityCache[plr] = nil
 end
 
+-- Initialize ESP for all players
 for _, p in ipairs(Players:GetPlayers()) do
     if p ~= LocalPlayer then CreateESP(p) end
 end
@@ -134,6 +136,7 @@ RunService.RenderStepped:Connect(function()
                     local isVisible = IsVisible(character)
                     local espColor = isVisible and Settings.ESP.VisibleColor or Settings.ESP.HiddenColor
                     
+                    -- Team-based coloring
                     if Utils.IsHostileTeam(plr) then
                         local teamName = plr.Team and plr.Team.Name:lower() or ""
                         if teamName:match("class") and teamName:match("d") then
@@ -148,6 +151,7 @@ RunService.RenderStepped:Connect(function()
                         dist = (hrp.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
                     end
                     
+                    -- Text info
                     local textParts = {}
                     if Settings.ESP.ShowNames then table.insert(textParts, plr.Name) end
                     if Settings.ESP.ShowTeam and plr.Team then table.insert(textParts, plr.Team.Name) end
@@ -158,13 +162,13 @@ RunService.RenderStepped:Connect(function()
                         local headPos = Camera:WorldToViewportPoint(head.Position)
                         esp.text.Text = table.concat(textParts, " | ")
                         esp.text.Position = Vector2.new(headPos.X, headPos.Y - 25)
-                        esp.text.Size = Settings.ESP.Size
                         esp.text.Color = espColor
                         esp.text.Visible = true
                     else
                         esp.text.Visible = false
                     end
                     
+                    -- Visibility status
                     if Settings.ESP.ShowVisibility then
                         local headPos = Camera:WorldToViewportPoint(head.Position)
                         esp.statusText.Text = isVisible and "VISIBLE" or "HIDDEN"
@@ -175,6 +179,7 @@ RunService.RenderStepped:Connect(function()
                         esp.statusText.Visible = false
                     end
                     
+                    -- Box ESP
                     if Settings.ESP.ShowBoxes then
                         local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
                         local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
@@ -185,12 +190,12 @@ RunService.RenderStepped:Connect(function()
                         esp.box.Size = Vector2.new(width, height)
                         esp.box.Position = Vector2.new(hrpPos.X - width/2, headPos.Y)
                         esp.box.Color = espColor
-                        esp.box.Thickness = Settings.ESP.BoxThickness
                         esp.box.Visible = true
                     else
                         esp.box.Visible = false
                     end
                     
+                    -- Skeleton ESP
                     if Settings.ESP.ShowSkeleton then
                         local skeletonParts = {
                             {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
@@ -214,7 +219,6 @@ RunService.RenderStepped:Connect(function()
                                     esp.skeleton[i].From = Vector2.new(pos1.X, pos1.Y)
                                     esp.skeleton[i].To = Vector2.new(pos2.X, pos2.Y)
                                     esp.skeleton[i].Color = espColor
-                                    esp.skeleton[i].Thickness = Settings.ESP.SkeletonThickness
                                     esp.skeleton[i].Visible = true
                                 else
                                     esp.skeleton[i].Visible = false
@@ -247,4 +251,4 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-print("[TR4CE] ESP system loaded")
+print("[TR4CE] ESP system loaded with skeleton")
