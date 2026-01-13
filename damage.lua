@@ -103,26 +103,7 @@ local function createDamageLabel(damage, isCritical)
     end)
 end
 
-local function trackPlayerForDamage(targetPlayer)
-    if trackedPlayers[targetPlayer] then return end
-    if targetPlayer == LocalPlayer then return end
-    
-    local function onCharacterAdded(character)
-        local humanoid = character:WaitForChild("Humanoid", 5)
-        if not humanoid then return end
-        
-        local lastHealth = humanoid.Health
-        
-        local connection = humanoid.HealthChanged:Connect(function(newHealth)
-            if newHealth < lastHealth then
-                if _G.CurrentTarget == targetPlayer then
-                    local damage = lastHealth - newHealth
-                    local isCritical = damage >= Settings.Damage.CriticalThreshold
-                    createDamageLabel(damage, isCritical)
-                end
-            end
-            lastHealth = newHealth
-        end)
+local CurrentTarget = _G.CurrentTarget
         
         trackedPlayers[targetPlayer] = connection
         
