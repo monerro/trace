@@ -1,4 +1,4 @@
---// AIMBOT SYSTEM - COMPLETE WITH WALL CHECK
+--// AIMBOT SYSTEM - FIXED FOR THIRD-PERSON
 local RunService = _G.RunService
 local UserInputService = _G.UserInputService
 local Players = _G.Players
@@ -48,6 +48,33 @@ local function WallCheck(origin, targetPart)
     return true
 end
 
+-- 🎯 KEY FIX: Get shooting origin for third-person
+local function GetShootingOrigin()
+    if not LocalPlayer.Character then return Camera.CFrame.Position end
+    
+    -- Check if character is holding a tool (gun)
+    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Handle") then
+        -- Use gun handle position
+        return tool.Handle.Position
+    end
+    
+    -- Check for common gun parts
+    local rightHand = LocalPlayer.Character:FindFirstChild("RightHand")
+    if rightHand then
+        return rightHand.Position
+    end
+    
+    -- Use head position as fallback
+    local head = LocalPlayer.Character:FindFirstChild("Head")
+    if head then
+        return head.Position
+    end
+    
+    -- Fallback to camera position
+    return Camera.CFrame.Position
+end
+
 local function GetClosestTarget()
     local closest, dist = nil, math.huge
     local screenCenter = Camera.ViewportSize / 2
@@ -70,7 +97,7 @@ local function GetClosestTarget()
                 if onscreen then
                     local mag = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
                     if mag < fovRadius and mag < dist then
-                        if WallCheck(Camera.CFrame.Position, part) then
+                        if WallCheck(GetShootingOrigin(), part) then
                             dist = mag
                             closest = plr
                         end
@@ -82,14 +109,7 @@ local function GetClosestTarget()
     return closest
 end
 
-local CurrentTarget = nil
-local aimbotToggled = false
-local lastUpdate = 0
-local UPDATE_RATE = 1/60
-
---// =========================
---// HITSOUND SYSTEM (INTEGRATED WITH AIMBOT)
---// =========================
+-- 🎯 SPAM HITSOUND SYSTEM
 local HitSounds = {
     Bameware = "rbxassetid://3124331820",
     Bell = "rbxassetid://6534947240",
@@ -101,55 +121,67 @@ local HitSounds = {
     Neverlose = "rbxassetid://6534947588"
 }
 
-local lastHitTime = 0
-local HIT_COOLDOWN = 0  -- Prevent sound spam
-local lastTargetHealth = {}
+local lastHitSoundTime = 0
+local HIT_SOUND_INTERVAL = 0.05  -- Spam every 0.05 seconds when hitting
+local targetLastHealth = {}
 
-local function playAimbotHitSound()
+local function playHitSoundSpam()
     if not Settings.Damage or not Settings.Damage.HitSound then return end
     
     local soundId = HitSounds[Settings.Damage.HitSoundType] or HitSounds.Skeet
+    local currentTime = tick()
     
-    local sound = Instance.new("Sound")
-    sound.SoundId = soundId
-    sound.Volume = Settings.Damage.HitSoundVolume or 0.5
-    sound.Parent = game:GetService("SoundService")
-    sound:Play()
-    
-    sound.Ended:Once(function()
-        sound:Destroy()
-    end)
+    if currentTime - lastHitSoundTime > HIT_SOUND_INTERVAL then
+        local sound = Instance.new("Sound")
+        sound.SoundId = soundId
+        sound.Volume = Settings.Damage.HitSoundVolume or 0.5
+        sound.Parent = game:GetService("SoundService")
+        sound:Play()
+        
+        sound.Ended:Once(function()
+            sound:Destroy()
+        end)
+        
+        lastHitSoundTime = currentTime
+    end
 end
 
--- Function to check if aimbot is dealing damage
-local function checkForAimbotDamage()
+-- Check for damage to trigger spam hitsounds
+local function checkForDamageSpam()
     if not CurrentTarget then return end
     if not CurrentTarget.Character then return end
     
     local humanoid = CurrentTarget.Character:FindFirstChild("Humanoid")
     if not humanoid then return end
     
-    -- Get current health
     local currentHealth = humanoid.Health
-    local lastHealth = lastTargetHealth[CurrentTarget] or currentHealth
+    local lastHealth = targetLastHealth[CurrentTarget] or currentHealth
     
-    -- Check if health decreased (we hit them)
+    -- Check if health decreased (we're hitting them)
     if currentHealth < lastHealth then
+        -- SPAM HITSOUNDS WHILE DAMAGE IS HAPPENING
         local damage = lastHealth - currentHealth
-        local currentTime = tick()
         
-        -- Only play sound every HIT_COOLDOWN seconds
-        if currentTime - lastHitTime > HIT_COOLDOWN then
-            playAimbotHitSound()
-            lastHitTime = currentTime
-            
-            print("[TR4CE] Aimbot hit: " .. CurrentTarget.Name .. " -" .. damage .. "HP")
+        -- Spam sound based on damage amount (more damage = more spam)
+        local spamCount = math.min(math.floor(damage / 5) + 1, 10)
+        
+        for i = 1, spamCount do
+            task.spawn(function()
+                task.wait((i-1) * 0.03)  -- Stagger sounds slightly
+                playHitSoundSpam()
+            end)
         end
+        
+        print("[TR4CE] Hit " .. CurrentTarget.Name .. " for " .. damage .. " HP (spamming " .. spamCount .. " sounds)")
     end
     
-    -- Store current health for next check
-    lastTargetHealth[CurrentTarget] = humanoid.Health
+    targetLastHealth[CurrentTarget] = currentHealth
 end
+
+local CurrentTarget = nil
+local aimbotToggled = false
+local lastUpdate = 0
+local UPDATE_RATE = 1/60
 
 RunService.RenderStepped:Connect(function()
     local now = tick()
@@ -206,13 +238,41 @@ RunService.RenderStepped:Connect(function()
     if shouldAim and CurrentTarget then
         local part = CurrentTarget.Character:FindFirstChild(Settings.Aim.BodyPart)
         if part then
-            local camCF = Camera.CFrame
-            local targetPos = part.Position
-            local direction = (targetPos - camCF.Position).Unit
-            local goal = CFrame.new(camCF.Position, camCF.Position + direction)
-            Camera.CFrame = camCF:Lerp(goal, Settings.Aim.Smoothness)
-
-            checkForAimbotDamage()
+            -- 🎯 KEY FIX: Different aiming method for third-person
+            
+            -- Method 1: Aim character's torso (better for third-person)
+            local character = LocalPlayer.Character
+            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoidRootPart then
+                -- Calculate direction to target
+                local targetPos = part.Position
+                local myPos = humanoidRootPart.Position
+                local direction = (targetPos - myPos).Unit
+                
+                -- Aim the character (not camera)
+                humanoidRootPart.CFrame = CFrame.new(myPos, myPos + Vector3.new(direction.X, 0, direction.Z))
+                
+                -- Optional: Also adjust camera slightly
+                local camCF = Camera.CFrame
+                local goal = CFrame.new(camCF.Position, targetPos)
+                Camera.CFrame = camCF:Lerp(goal, Settings.Aim.Smoothness * 0.3)  -- Less camera movement
+            else
+                -- Fallback: Original camera aiming
+                local camCF = Camera.CFrame
+                local targetPos = part.Position
+                local direction = (targetPos - camCF.Position).Unit
+                local goal = CFrame.new(camCF.Position, camCF.Position + direction)
+                Camera.CFrame = camCF:Lerp(goal, Settings.Aim.Smoothness)
+            end
+            
+            -- 🎯 Check for damage and spam hitsounds
+            checkForDamageSpam()
+        end
+    else
+        -- Reset last health when not aiming
+        if CurrentTarget then
+            targetLastHealth[CurrentTarget] = nil
         end
     end
 end)
@@ -228,5 +288,6 @@ end)
 _G.CurrentTarget = CurrentTarget
 _G.GetClosestTarget = GetClosestTarget
 _G.aimbotToggled = aimbotToggled
+_G.playHitSoundSpam = playHitSoundSpam
 
-print("[TR4CE] Aimbot system loaded with wall check")
+print("[TR4CE] Third-person aimbot loaded with spam hitsounds")
