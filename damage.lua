@@ -4,6 +4,7 @@ local Players = _G.Players
 local Camera = _G.Camera
 local LocalPlayer = _G.LocalPlayer
 local Settings = _G.Settings
+local CurrentTarget = _G.CurrentTarget
 
 local DamageIndicatorGui = nil
 local trackedPlayers = {}
@@ -115,7 +116,8 @@ local function trackPlayerForDamage(targetPlayer)
         
         local connection = humanoid.HealthChanged:Connect(function(newHealth)
             if newHealth < lastHealth then
-                if _G.CurrentTarget == targetPlayer then
+                -- FIXED: Use CurrentTarget from _G
+                if CurrentTarget == targetPlayer then
                     local damage = lastHealth - newHealth
                     local isCritical = damage >= Settings.Damage.CriticalThreshold
                     createDamageLabel(damage, isCritical)
@@ -125,6 +127,7 @@ local function trackPlayerForDamage(targetPlayer)
         end)
         
         trackedPlayers[targetPlayer] = connection
+    end
         
         character.AncestryChanged:Connect(function()
             if connection then
