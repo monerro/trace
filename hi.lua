@@ -1,35 +1,31 @@
---// TR4CE DEBUG LOADER
--- Updated: [current time]
-print("[DEBUG] Starting TR4CE loader...")
+--// TR4CE MINIMAL TEST
+print("[TR4CE] Starting minimal test...")
 
--- Test if we can reach GitHub
-local testURL = "https://raw.githubusercontent.com/monerro/trace/main/hi.lua"
-print("[DEBUG] Testing URL: " .. testURL)
+local repo = "https://raw.githubusercontent.com/monerro/trace/main/"
 
-local success, result = pcall(function()
-    local content = game:HttpGet(testURL)
-    print("[DEBUG] Got content length: " .. tostring(#content))
-    return content
+-- Test loading a simple module
+local testModuleURL = repo .. "test-module.lua"
+print("[TR4CE] Testing URL: " .. testModuleURL)
+
+local success, content = pcall(function()
+    return game:HttpGet(testModuleURL)
 end)
 
-if success then
-    print("[DEBUG] ✓ GitHub access successful")
+if success and content then
+    print("[TR4CE] Got module content (" .. #content .. " chars)")
+    
+    local loadSuccess, loadResult = pcall(function()
+        return loadstring(content)()
+    end)
+    
+    if loadSuccess then
+        print("[TR4CE] ✓ Module loaded successfully!")
+        print("[TR4CE] Module returned: " .. tostring(loadResult))
+    else
+        print("[TR4CE] ✗ Failed to execute module: " .. tostring(loadResult))
+    end
 else
-    print("[DEBUG] ✗ GitHub access failed: " .. tostring(result))
+    print("[TR4CE] ✗ Failed to fetch module: " .. tostring(content))
 end
 
--- Try loading the simplest possible module
-local simpleTest = [[
-    print("[DEBUG] Simple module loaded successfully!")
-    return {test = "success"}
-]]
-
-local loaded = loadstring(simpleTest)
-if loaded then
-    print("[DEBUG] ✓ loadstring works")
-    loaded()
-else
-    print("[DEBUG] ✗ loadstring failed")
-end
-
-print("[DEBUG] Loader complete")
+print("[TR4CE] Test complete")
