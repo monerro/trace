@@ -1,4 +1,4 @@
---// WHITELIST SYSTEM
+--// WHITELIST SYSTEM - ORIGINAL
 local Players = _G.Players
 local LocalPlayer = _G.LocalPlayer
 local HttpService = _G.HttpService
