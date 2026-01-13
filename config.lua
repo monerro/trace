@@ -9,8 +9,8 @@ local Settings = {
         TeamCheck = true,
         WallCheck = false,
         StickyAim = false,
-        ADSOnly = true,
-        
+        ADSOnly = true
+    },
     FOV = {
         Enabled = true,
         DrawCircle = true,
@@ -37,19 +37,7 @@ local Settings = {
         SkeletonThickness = 1,
         Chams = false,
         ChamsTransparency = 0.5
-        CustomTeams = false,
-        TargetTeams = {
-            ["class-d"] = true,
-            ["chaos insurgency"] = true,
-            ["security department"] = false,
-            ["scientific department"] = false,
-            ["medical department"] = false,
-            ["rapid response"] = false,
-            ["mobile task force"] = false,
-            ["internal security"] = false
-        }
     },
-    
     Damage = {
         Enabled = false,
         ShowCritical = true,
@@ -85,4 +73,4 @@ local Settings = {
 -- Make settings global for other modules
 _G.Settings = Settings
 
-print("[TR4CE] Configuration loaded")
+return Settings
