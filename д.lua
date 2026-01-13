@@ -1,24 +1,25 @@
--- TR4CE loader
+-- hi :)
 
-local BASE_URL = "https://raw.githubusercontent.com/monerro/trace/main/"
+local repo = "https://raw.githubusercontent.com/monerro/trace/main/"
 
-local function Load(path)
-    return loadstring(game:HttpGet(BASE_URL .. path))()
-end
+-- Load dependencies first
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua"))()
 
--- load core
-local Services = Load("services.lua")
-local Settings = Load("settings.lua")
-local IsHostileTeam = Load("teams.lua")
+print("[TR4CE] Loading modules...")
 
--- load ui
-local UI = Load("ui.lua")
+-- Load modules in order
+local whitelist = loadstring(game:HttpGet(repo .. "whitelist.lua"))()
+local config = loadstring(game:HttpGet(repo .. "config.lua"))()
+local utils = loadstring(game:HttpGet(repo .. "utils.lua"))()
+local aimbot = loadstring(game:HttpGet(repo .. "aimbot.lua"))()
+local esp = loadstring(game:HttpGet(repo .. "esp.lua"))()
+local damage = loadstring(game:HttpGet(repo .. "damage.lua"))()
+local misc = loadstring(game:HttpGet(repo .. "misc.lua"))()
+local ui = loadstring(game:HttpGet(repo .. "ui.lua"))()
 
--- load features
-Load("aimbot.lua")
-Load("esp.lua")
-Load("damage.lua")
-Load("misc.lua")
-Load("position_hider.lua")
+print("[TR4CE] All modules loaded successfully!")
+print("[TR4CE] Framework initialized for " .. game.Players.LocalPlayer.Name)
 
-UI:Notify("Loaded", 5)
+Library:Notify('TR4CE SCP Roleplay loaded! Press END to toggle menu', 5)
